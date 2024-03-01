@@ -4,9 +4,9 @@ project(snet-bindings)
 include(CTest)
 
 set(GO_BINARY "go" CACHE FILEPATH "Path to go binary")
-set(BUILD_STATIC_LIBS OFF CACHE BOOL "Build static/archive libraries")
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries")
-set(BUILD_EXAMPLES ON CACHE BOOL "Build the examples")
+option(BUILD_STATIC_LIBS "Build static/archive libraries" OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(BUILD_EXAMPLES "Build the examples" ON)
 
 add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
 
@@ -16,10 +16,10 @@ add_subdirectory(go)
 # C++ library
 add_library(snet_cpp src/snet.cpp)
 target_link_libraries(snet_cpp PRIVATE snet_c)
-target_include_directories(snet_cpp PUBLIC "${CMAKE_SOURCE_DIR}/include")
+target_include_directories(snet_cpp PUBLIC "${PROJECT_SOURCE_DIR}/include")
 set_target_properties(snet_cpp PROPERTIES
     CXX_STANDARD 20
-    PUBLIC_HEADER "${CMAKE_SOURCE_DIR}/include/snet/snet.hpp"
+    PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/snet/snet.hpp"
     OUTPUT_NAME "snetcpp"
     DEBUG_POSTFIX "d"
 )
