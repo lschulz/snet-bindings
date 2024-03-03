@@ -51,7 +51,8 @@ add_library(cgo_imported STATIC IMPORTED GLOBAL)
 add_dependencies(cgo_imported snet_cgo)
 set_target_properties(cgo_imported PROPERTIES
     IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CGO_STATIC_LIBRARY}
-    INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include)
+    INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include
+)
 
 # Static library compiled from C code, linked with Cgo output
 add_library(snet_c OBJECT
@@ -80,12 +81,16 @@ endif(${BUILD_STATIC_LIBS})
 
 # Link as shared library
 if (${BUILD_SHARED_LIBS})
-    add_library(snet_shared SHARED ${CGO_OBJS} "$<TARGET_OBJECTS:snet_c>")
-    add_dependencies(snet_shared snet_cgo snet_c)
+    add_library(snet_shared SHARED "$<TARGET_OBJECTS:snet_c>")
+    add_dependencies(snet_shared snet_c)
+    target_link_libraries(snet_shared PRIVATE
+        "-Wl,--whole-archive $<TARGET_FILE:cgo_imported> -Wl,--no-whole-archive")
     target_include_directories(snet_shared INTERFACE ${PROJECT_SOURCE_DIR}/include)
     set_target_properties(snet_shared PROPERTIES
         OUTPUT_NAME snet
         DEBUG_POSTFIX "d"
+        VERSION "1.0.0"
+        SOVERSION "1"
     )
     if (WIN32)
         target_link_libraries(snet_shared PRIVATE Ws2_32.lib)
