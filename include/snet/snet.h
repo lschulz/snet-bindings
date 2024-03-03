@@ -112,7 +112,7 @@ extern void ScHostDestroy(ScHostCtx hostCtx);
 /**
 \brief Allocate memory through the callback passed during host context initialization.
 */
-extern void* ScHostAllocMem(ScHostCtx hostCtx, ssize_t size);
+extern void* ScHostAllocMem(ScHostCtx hostCtx, GoInt size);
 
 /**
 \brief Deallocate memory allocated with ScHostAllocMem().

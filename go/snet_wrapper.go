@@ -348,7 +348,7 @@ func ScHostDestroy(hostCtx C.ScHostCtx) {
 \brief Allocate memory through the callback passed during host context initialization.
 */
 //export ScHostAllocMem
-func ScHostAllocMem(hostCtx C.ScHostCtx, size C.ssize_t) *C.void {
+func ScHostAllocMem(hostCtx C.ScHostCtx, size int) *C.void {
 	host := cgo.Handle(hostCtx)
 	h := host.Value().(*HostCtx)
 	if size < 0 {
