@@ -36,4 +36,4 @@ endif()
 
 # Tests
 add_subdirectory(tests)
-add_test(NAME DocTest COMMAND tests)
+add_test(NAME DocTest COMMAND unit-tests)

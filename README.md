@@ -38,7 +38,7 @@ pacman -S \
 ```
 
 Open an MSYS2 UCRT64 environment and navigate to the project root (Windows drive
-letters are available as `/c` and so on). Set `GO_BINARY` to t
+letters are available as `/c` and so on).
 ```bash
 mkdir build
 cmake -D BUILD_STATIC_LIBS=ON -D GO_BINARY="$PROGRAMFILES/Go/bin/go.exe" -G 'Ninja Multi-Config' -B build
