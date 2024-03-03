@@ -1,6 +1,11 @@
 SCION SNET Bindings for C and C++
 =================================
 
+C and C++ bindings for SCION's primary application API
+[snet](https://pkg.go.dev/github.com/scionproto/scion/pkg/snet).
+The bindings build against the
+[dispatcher removal PR](https://github.com/scionproto/scion/pull/4344).
+
 ### Build
 CMake build options:
 - `GO_BINARY` Path to the go executable.

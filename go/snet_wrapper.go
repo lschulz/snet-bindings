@@ -38,7 +38,7 @@ import (
 )
 
 //////////////////////////
-// CGo Helper Functions //
+// Cgo Helper Functions //
 //////////////////////////
 
 // Copy a Go string into a fixed size char buffer including a null terminator.
@@ -661,7 +661,7 @@ func (h *HostCtx) openSocket(ctx context.Context,
 			callback: scmpCallback,
 			userdata: scmpUserData,
 		},
-		Controller: h.sciond,
+		CPInfoProvider: h.sciond,
 	}
 	sconn, err := connector.OpenUDP(ctx, loc)
 	if err != nil {
@@ -914,6 +914,6 @@ func (s *Socket) recvPacket(pkt *C.struct_ScUDPPacket) C.ScStatus {
 	}
 }
 
-// main for CGo
+// main for Cgo
 func main() {
 }

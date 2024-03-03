@@ -46,14 +46,14 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy "${CGO_HEADER_OUT}" "${GENERATED_HEADER}"
 )
 
-# Import result of CGo compilation as library target
+# Import result of Cgo compilation as library target
 add_library(cgo_imported STATIC IMPORTED GLOBAL)
 add_dependencies(cgo_imported snet_cgo)
 set_target_properties(cgo_imported PROPERTIES
     IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CGO_STATIC_LIBRARY}
     INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include)
 
-# Static library compiled from C code, linked with CGo output
+# Static library compiled from C code, linked with Cgo output
 add_library(snet_c OBJECT
     "${PROJECT_SOURCE_DIR}/src/addr.c"
     "${PROJECT_SOURCE_DIR}/src/path.c"
