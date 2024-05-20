@@ -96,12 +96,12 @@ extern void ScCancelAsyncOp(struct ScAsyncOp* op);
 /**
 \brief Initialize the host context.
 */
-extern ScStatus ScHostInit(ScHostCtx* hostCtx, ConstPtrScConfig config, GoInt32 timeout);
+extern ScStatus ScHostInit(ScHostCtx* hostCtx, ConstPtrScConfig config, ScSCMPHandler scmpCallback, uintptr_t scmpUserData, GoInt32 timeout);
 
 /**
 \brief Initialize the host context.
 */
-extern void ScHostInitAsync(ScHostCtx* hostCtx, ConstPtrScConfig config, struct ScAsyncOp* op);
+extern void ScHostInitAsync(ScHostCtx* hostCtx, ConstPtrScConfig config, ScSCMPHandler scmpCallback, uintptr_t scmpUserData, struct ScAsyncOp* op);
 
 /**
 \brief Destroy the host context. Make sure there are no sockets using ths context anymore before
@@ -137,12 +137,12 @@ extern void ScQueryPathsAsync(ScHostCtx hostCtx, ScIA dst, struct ScPath*** path
 /**
 \brief Open a socket.
 */
-extern ScStatus ScOpenSocket(ScHostCtx hostCtx, ConstPtrScLocalUDPAddr local, ScSCMPHandler scmpCallback, uintptr_t scmpUserData, ScSocket* sock, GoInt32 timeout);
+extern ScStatus ScOpenSocket(ScHostCtx hostCtx, ConstPtrScLocalUDPAddr local, ScSocket* sock, GoInt32 timeout);
 
 /**
 \brief Open a socket.
 */
-extern void ScOpenSocketAsync(ScHostCtx hostCtx, ConstPtrScLocalUDPAddr local, ScSCMPHandler scmpCallback, uintptr_t scmpUserData, ScSocket* sock, struct ScAsyncOp* op);
+extern void ScOpenSocketAsync(ScHostCtx hostCtx, ConstPtrScLocalUDPAddr local, ScSocket* sock, struct ScAsyncOp* op);
 
 /**
 \brief Close a socket.

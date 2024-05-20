@@ -245,14 +245,76 @@ func ScCancelAsyncOp(op *C.struct_ScAsyncOp) {
 	cancelAsyncOp(op)
 }
 
+////////////////////////////
+// SCMP Handler Interface //
+////////////////////////////
+
+type scmpHandler struct {
+	callback C.ScSCMPHandler
+	userdata C.uintptr_t
+}
+
+func (h scmpHandler) Handle(pkt *snet.Packet) error {
+	scmp := pkt.Payload.(snet.SCMPPayload)
+	switch scmp.Type() {
+	case slayers.SCMPTypeDestinationUnreachable:
+		msg := pkt.Payload.(snet.SCMPDestinationUnreachable)
+		m := &C.struct_ScSCMPDestinationUnreachable{
+			_type: C.SC_SCMP_TYPE_PARAMETER_PROBLEM,
+			code:  C.uint8_t(msg.Code()),
+		}
+		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
+
+	case slayers.SCMPTypePacketTooBig:
+		msg := pkt.Payload.(snet.SCMPPacketTooBig)
+		m := &C.struct_ScSCMPPacketTooBig{
+			_type: C.SC_SCMP_TYPE_PARAMETER_PROBLEM,
+			code:  C.uint8_t(msg.Code()),
+			mtu:   C.uint16_t(msg.MTU),
+		}
+		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
+
+	case slayers.SCMPTypeParameterProblem:
+		msg := pkt.Payload.(snet.SCMPParameterProblem)
+		m := &C.struct_ScSCMPParameterProblem{
+			_type:   C.SC_SCMP_TYPE_PARAMETER_PROBLEM,
+			code:    C.uint8_t(msg.Code()),
+			pointer: C.uint16_t(msg.Pointer),
+		}
+		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
+
+	case slayers.SCMPTypeExternalInterfaceDown:
+		msg := pkt.Payload.(snet.SCMPExternalInterfaceDown)
+		m := &C.struct_ScSCMPExternalInterfaceDown{
+			_type:      C.SC_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN,
+			code:       C.uint8_t(msg.Code()),
+			originator: C.ScIA(msg.IA),
+			_interface: C.ScIfId(msg.Interface),
+		}
+		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
+
+	case slayers.SCMPTypeInternalConnectivityDown:
+		msg := pkt.Payload.(snet.SCMPInternalConnectivityDown)
+		m := &C.struct_ScSCMPInternalConnectivityDown{
+			_type:      C.SC_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN,
+			code:       C.uint8_t(msg.Code()),
+			originator: C.ScIA(msg.IA),
+			egressIf:   C.ScIfId(msg.Egress),
+			ingressIf:  C.ScIfId(msg.Ingress),
+		}
+		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
+	}
+	return nil
+}
+
 /////////////
 // HostCtx //
 /////////////
 
 type HostCtx struct {
-	ia     addr.IA
-	sciond daemon.Connector
-	// disp reliable.Dispatcher
+	ia      addr.IA
+	sciond  daemon.Connector
+	network *snet.SCIONNetwork
 	cmalloc C.ScMalloc
 	cfree   C.ScFree
 }
@@ -282,9 +344,10 @@ func (h *HostCtx) free(ptr unsafe.Pointer) {
 \brief Initialize the host context.
 */
 //export ScHostInit
-func ScHostInit(hostCtx *C.ScHostCtx, config C.ConstPtrScConfig, timeout int32) C.ScStatus {
+func ScHostInit(hostCtx *C.ScHostCtx, config C.ConstPtrScConfig,
+	scmpCallback C.ScSCMPHandler, scmpUserData C.uintptr_t, timeout int32) C.ScStatus {
 	f := func(ctx context.Context) C.ScStatus {
-		return hostInit(ctx, hostCtx, config)
+		return hostInit(ctx, hostCtx, config, scmpCallback, scmpUserData)
 	}
 	return callWithTimeout(f, timeout)
 }
@@ -293,14 +356,16 @@ func ScHostInit(hostCtx *C.ScHostCtx, config C.ConstPtrScConfig, timeout int32) 
 \brief Initialize the host context.
 */
 //export ScHostInitAsync
-func ScHostInitAsync(hostCtx *C.ScHostCtx, config C.ConstPtrScConfig, op *C.struct_ScAsyncOp) {
+func ScHostInitAsync(hostCtx *C.ScHostCtx, config C.ConstPtrScConfig, scmpCallback C.ScSCMPHandler,
+	scmpUserData C.uintptr_t, op *C.struct_ScAsyncOp) {
 	f := func(ctx context.Context) C.ScStatus {
-		return hostInit(ctx, hostCtx, config)
+		return hostInit(ctx, hostCtx, config, scmpCallback, scmpUserData)
 	}
 	callAsync(f, op)
 }
 
-func hostInit(ctx context.Context, hostCtx *C.ScHostCtx, config *C.struct_ScConfig) C.ScStatus {
+func hostInit(ctx context.Context, hostCtx *C.ScHostCtx, config *C.struct_ScConfig,
+	scmpCallback C.ScSCMPHandler, scmpUserData C.uintptr_t) C.ScStatus {
 	if (config.malloc == nil) != (config.free == nil) {
 		return C.SC_ERROR_INVALID_ARG
 	}
@@ -319,10 +384,18 @@ func hostInit(ctx context.Context, hostCtx *C.ScHostCtx, config *C.struct_ScConf
 		return C.SC_ERROR_DAEMON
 	}
 
-	// disp := reliable.NewDispatcher(C.GoString(config.dispSock))
+	network := &snet.SCIONNetwork{
+		Topology: sciond,
+		SCMPHandler: scmpHandler{
+			callback: scmpCallback,
+			userdata: scmpUserData,
+		},
+	}
+
 	host := &HostCtx{
 		ia:      ia,
 		sciond:  sciond,
+		network: network,
 		cmalloc: config.malloc,
 		cfree:   config.free,
 	}
@@ -531,74 +604,13 @@ func (h *HostCtx) queryPaths(ctx context.Context, dst C.ScIA,
 	return C.SC_SUCCESS
 }
 
-////////////////////////////
-// SCMP Handler Interface //
-////////////////////////////
-
-type scmpHandler struct {
-	callback C.ScSCMPHandler
-	userdata C.uintptr_t
-}
-
-func (h scmpHandler) Handle(pkt *snet.Packet) error {
-	scmp := pkt.Payload.(snet.SCMPPayload)
-	switch scmp.Type() {
-	case slayers.SCMPTypeDestinationUnreachable:
-		msg := pkt.Payload.(snet.SCMPDestinationUnreachable)
-		m := &C.struct_ScSCMPDestinationUnreachable{
-			_type: C.SC_SCMP_TYPE_PARAMETER_PROBLEM,
-			code:  C.uint8_t(msg.Code()),
-		}
-		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
-
-	case slayers.SCMPTypePacketTooBig:
-		msg := pkt.Payload.(snet.SCMPPacketTooBig)
-		m := &C.struct_ScSCMPPacketTooBig{
-			_type: C.SC_SCMP_TYPE_PARAMETER_PROBLEM,
-			code:  C.uint8_t(msg.Code()),
-			mtu:   C.uint16_t(msg.MTU),
-		}
-		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
-
-	case slayers.SCMPTypeParameterProblem:
-		msg := pkt.Payload.(snet.SCMPParameterProblem)
-		m := &C.struct_ScSCMPParameterProblem{
-			_type:   C.SC_SCMP_TYPE_PARAMETER_PROBLEM,
-			code:    C.uint8_t(msg.Code()),
-			pointer: C.uint16_t(msg.Pointer),
-		}
-		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
-
-	case slayers.SCMPTypeExternalInterfaceDown:
-		msg := pkt.Payload.(snet.SCMPExternalInterfaceDown)
-		m := &C.struct_ScSCMPExternalInterfaceDown{
-			_type:      C.SC_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN,
-			code:       C.uint8_t(msg.Code()),
-			originator: C.ScIA(msg.IA),
-			_interface: C.ScIfId(msg.Interface),
-		}
-		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
-
-	case slayers.SCMPTypeInternalConnectivityDown:
-		msg := pkt.Payload.(snet.SCMPInternalConnectivityDown)
-		m := &C.struct_ScSCMPInternalConnectivityDown{
-			_type:      C.SC_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN,
-			code:       C.uint8_t(msg.Code()),
-			originator: C.ScIA(msg.IA),
-			egressIf:   C.ScIfId(msg.Egress),
-			ingressIf:  C.ScIfId(msg.Ingress),
-		}
-		C.call_scmp_handler(h.callback, (*C.struct_ScSCMPMessage)(unsafe.Pointer(m)), h.userdata)
-	}
-	return nil
-}
-
 ////////////
 // Socket //
 ////////////
 
 type Socket struct {
 	hostCtx   *HostCtx
+	network   *snet.SCIONNetwork
 	sconn     snet.PacketConn
 	localIA   addr.IA
 	localIP   netip.Addr
@@ -610,14 +622,12 @@ type Socket struct {
 */
 //export ScOpenSocket
 func ScOpenSocket(hostCtx C.ScHostCtx,
-	local C.ConstPtrScLocalUDPAddr,
-	scmpCallback C.ScSCMPHandler, scmpUserData C.uintptr_t,
-	sock *C.ScSocket, timeout int32) C.ScStatus {
+	local C.ConstPtrScLocalUDPAddr, sock *C.ScSocket, timeout int32) C.ScStatus {
 
 	host := cgo.Handle(hostCtx)
 	h := host.Value().(*HostCtx)
 	f := func(ctx context.Context) C.ScStatus {
-		return h.openSocket(ctx, local, scmpCallback, scmpUserData, sock)
+		return h.openSocket(ctx, local, sock)
 	}
 
 	return callWithTimeout(f, timeout)
@@ -628,23 +638,19 @@ func ScOpenSocket(hostCtx C.ScHostCtx,
 */
 //export ScOpenSocketAsync
 func ScOpenSocketAsync(hostCtx C.ScHostCtx,
-	local C.ConstPtrScLocalUDPAddr,
-	scmpCallback C.ScSCMPHandler, scmpUserData C.uintptr_t,
-	sock *C.ScSocket, op *C.struct_ScAsyncOp) {
+	local C.ConstPtrScLocalUDPAddr, sock *C.ScSocket, op *C.struct_ScAsyncOp) {
 
 	host := cgo.Handle(hostCtx)
 	h := host.Value().(*HostCtx)
 	f := func(ctx context.Context) C.ScStatus {
-		return h.openSocket(ctx, local, scmpCallback, scmpUserData, sock)
+		return h.openSocket(ctx, local, sock)
 	}
 
 	callAsync(f, op)
 }
 
 func (h *HostCtx) openSocket(ctx context.Context,
-	local *C.struct_ScLocalUDPAddr,
-	scmpCallback C.ScSCMPHandler, scmpUserData C.uintptr_t,
-	sock *C.ScSocket) C.ScStatus {
+	local *C.struct_ScLocalUDPAddr, sock *C.ScSocket) C.ScStatus {
 
 	if local == nil || sock == nil {
 		return C.SC_ERROR_INVALID_ARG
@@ -655,37 +661,19 @@ func (h *HostCtx) openSocket(ctx context.Context,
 		Port: int(local.port),
 		Zone: C.GoString(&local.host.zone[0]),
 	}
-	// rconn, port, err := h.disp.Register(ctx, addr.IA(h.ia), loc, addr.SvcNone)
-	connector := &snet.DefaultConnector{
-		SCMPHandler: scmpHandler{
-			callback: scmpCallback,
-			userdata: scmpUserData,
-		},
-		CPInfoProvider: h.sciond,
-	}
-	sconn, err := connector.OpenUDP(ctx, loc)
+
+	sconn, err := h.network.OpenRaw(ctx, loc)
 	if err != nil {
 		return C.SC_ERROR_FAILED
 	}
 
-	// localIP, ok := netip.AddrFromSlice(loc.IP)
-	// if !ok {
-	// 	panic("invalid address")
-	// }
 	addr, err := netip.ParseAddrPort(sconn.LocalAddr().String())
 	if err != nil {
 		panic("invalid address")
 	}
 
 	c := &Socket{
-		hostCtx: h,
-		// sconn: &snet.SCIONPacketConn{
-		// 	Conn: rconn,
-		// 	SCMPHandler: scmpHandler{
-		// 		callback: scmpCallback,
-		// 		userdata: scmpUserData,
-		// 	},
-		// },
+		hostCtx:   h,
 		sconn:     sconn,
 		localIA:   h.ia,
 		localIP:   addr.Addr(),

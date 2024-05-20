@@ -240,8 +240,8 @@ int runServer(Arguments& args)
     using namespace std::chrono_literals;
 
     Status status;
-    HostCtx hostCtx;
-    Socket socket(scmpHandler);
+    HostCtx hostCtx(scmpHandler);
+    Socket socket;
     UDPAddr from;
     LocalUDPAddr lastHop;
     std::vector<std::byte> pathBuf(1024), buffer(2028);
@@ -312,8 +312,8 @@ int runClient(Arguments& args)
     using namespace std::chrono_literals;
 
     Status status;
-    HostCtx hostCtx;
-    Socket socket(scmpHandler);
+    HostCtx hostCtx(scmpHandler);
+    Socket socket;
     UDPAddr from;
     LocalUDPAddr lastHop;
     std::vector<std::byte> pathBuf(1024), buffer(2028);

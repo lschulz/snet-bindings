@@ -36,6 +36,7 @@
 #include <ranges>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 
@@ -66,6 +67,14 @@ enum class Status
     NotInitialized = -100,
     SocketClosed = -101,
 };
+
+} // namespace scion
+
+namespace std {
+template<> struct is_error_code_enum<scion::Status> : true_type {};
+}
+
+namespace scion {
 
 std::ostream& operator<<(std::ostream& stream, Status status);
 
@@ -666,12 +675,19 @@ public:
 // Host Context //
 //////////////////
 
+/// \brief Interface for SCMP message handlers.
+class SCMPHandler
+{
+public:
+    virtual void handle(const ScSCMPMessage* msg) = 0;
+};
+
 /// \brief A host context encapsulates the connection to (one of) the SCION end host stack(s)
 /// installed on the system.
 class HostCtx final
 {
 public:
-    HostCtx() = default;
+    HostCtx(SCMPHandler& handler) : handler(&handler) {}
     HostCtx(const HostCtx& other) = delete;
     HostCtx(HostCtx&& other);
 
@@ -712,28 +728,24 @@ public:
     void queryPathsAsync(PathVec& paths, IA dst, uint64_t flags, AsyncOp& async);
 
 private:
+    static void handleSCMP(const ScSCMPMessage* msg, uintptr_t userdata);
+
+private:
     ScHostCtx ctx = 0;
+    SCMPHandler* handler;
 };
 
 ////////////
 // Socket //
 ////////////
 
-/// \brief Interface for SCMP message handlers.
-class SCMPHandler
-{
-public:
-    virtual void handle(const ScSCMPMessage* msg) = 0;
-};
-
 /// \brief Socket for reading and writing SCION packets.
 class Socket
 {
 public:
-    /// \brief Construct a SCION socket with the given handler for SCMP
-    /// messages. The socket must be opened using open() or asyncOpen() before
-    /// it can be used for communication.
-    Socket(SCMPHandler& handler) : handler(&handler) {}
+    /// \brief Construct a SCION socket. The socket must be opened using open()
+    /// or asyncOpen() before it can be used for communication.
+    Socket() = default;
     Socket(const Socket& other) = delete;
     Socket(Socket&& other);
 
@@ -822,11 +834,7 @@ public:
     void recvPacketAsync(UDPAddr& from, Slice& payload, AsyncOp& async);
 
 private:
-    static void handleSCMP(const ScSCMPMessage* msg, uintptr_t userdata);
-
-private:
     ScSocket sock = 0;
-    SCMPHandler* handler;
 };
 
 } // namespace scion

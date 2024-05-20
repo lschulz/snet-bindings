@@ -403,7 +403,7 @@ std::ostream& operator<<(std::ostream &stream, IA ia)
     auto asn = ia & ((1ull << ASN_BITS) - 1);
 
     stream << isd << "-";
-    if (ia <= MAX_BGP_ASN) {
+    if (asn <= MAX_BGP_ASN) {
         stream << asn;
     } else {
         stream << std::hex
@@ -641,8 +641,10 @@ std::ostream& operator<<(std::ostream& stream, const Path& path)
 DLLEXPORT
 HostCtx::HostCtx(HostCtx&& other)
     : ctx(other.ctx)
+    , handler(other.handler)
 {
     other.ctx = 0;
+    other.handler = nullptr;
 }
 
 DLLEXPORT
@@ -653,6 +655,7 @@ HostCtx &HostCtx::operator=(HostCtx&& other)
             ScHostDestroy(ctx);
         }
         ctx = other.ctx;
+        handler = other.handler;
     }
     return *this;
 }
@@ -681,7 +684,8 @@ Status HostCtx::init(const char* sciond, std::chrono::milliseconds timeout)
         .malloc = &std::malloc,
         .free = &std::free,
     };
-    return castStatus(ScHostInit(&ctx, &scConfig, timeout.count()));
+    return castStatus(ScHostInit(&ctx, &scConfig, &handleSCMP,
+        reinterpret_cast<uintptr_t>(this), timeout.count()));
 }
 
 DLLEXPORT
@@ -704,7 +708,8 @@ void HostCtx::initAsync(const char* sciond, AsyncOp& async)
             data->handler->execute(castStatus(result));
         }
     };
-    ScHostInitAsync(&ctx, &calldata->config, async.go.get());
+    ScHostInitAsync(&ctx, &calldata->config, &handleSCMP,
+        reinterpret_cast<uintptr_t>(this), async.go.get());
 }
 
 DLLEXPORT
@@ -766,6 +771,15 @@ void HostCtx::queryPathsAsync(PathVec& vec, IA dst, uint64_t flags, AsyncOp& asy
     ScQueryPathsAsync(ctx, dst, &calldata->paths, &calldata->count, flags, async.go.get());
 }
 
+void HostCtx::handleSCMP(const ScSCMPMessage* msg, uintptr_t userdata)
+{
+    auto self = reinterpret_cast<HostCtx*>(userdata);
+    if (self->handler) {
+        self->handler->handle(msg);
+    }
+}
+
+
 ////////////
 // Socket //
 ////////////
@@ -773,7 +787,6 @@ void HostCtx::queryPathsAsync(PathVec& vec, IA dst, uint64_t flags, AsyncOp& asy
 DLLEXPORT
 Socket::Socket(Socket&& other)
     : sock(other.sock)
-    , handler(other.handler)
 {
     other.sock = 0;
 }
@@ -784,7 +797,6 @@ Socket& Socket::operator=(Socket&& other)
     if (this != &other) {
         close();
         sock = other.sock;
-        handler = other.handler;
     }
     return *this;
 }
@@ -794,8 +806,7 @@ Status Socket::open(HostCtx& ctx, const LocalUDPAddr& local, std::chrono::millis
 {
     if (sock) throw InvalidArg("socket already open");
     auto err = ScOpenSocket(
-        ctx.get(), &local.addr, &handleSCMP,
-        reinterpret_cast<uintptr_t>(this), &sock, timeout.count());
+        ctx.get(), &local.addr, &sock, timeout.count());
     return castStatus(err);
 }
 
@@ -816,8 +827,7 @@ void Socket::openAsync(HostCtx& ctx, const LocalUDPAddr& local, AsyncOp& async)
         }
     };
     ScOpenSocketAsync(
-        ctx.get(), &(calldata->local.addr), &handleSCMP,
-        reinterpret_cast<uintptr_t>(this), &sock, async.go.get());
+        ctx.get(), &(calldata->local.addr), &sock, async.go.get());
 }
 
 DLLEXPORT
@@ -1052,14 +1062,6 @@ void Socket::recvPacketAsync(UDPAddr& from, Slice& payload, AsyncOp& async)
         }
     };
     ScRecvPacketAsync(sock, &calldata->pkt, async.go.get());
-}
-
-void Socket::handleSCMP(const ScSCMPMessage* msg, uintptr_t userdata)
-{
-    auto self = reinterpret_cast<Socket*>(userdata);
-    if (self->handler) {
-        self->handler->handle(msg);
-    }
 }
 
 } // namespace scion

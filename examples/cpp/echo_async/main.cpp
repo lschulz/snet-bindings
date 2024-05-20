@@ -147,7 +147,7 @@ class Server
 {
 public:
     Server()
-        : socket(scmpHandler)
+        : hostCtx(scmpHandler)
 #if __linux__
         , asyncOp(std::make_unique<scion::CompletionEventFD>())
 #elif _WIN32
@@ -372,7 +372,7 @@ class Client
 {
 public:
     Client()
-        : socket(scmpHandler)
+        : hostCtx(scmpHandler)
 #if __linux__
         , asyncOp(std::make_unique<scion::CompletionEventFD>())
 #elif _WIN32
