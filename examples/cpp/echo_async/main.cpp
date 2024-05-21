@@ -176,7 +176,7 @@ public:
 
         auto loc = LocalUDPAddr::fromString(args.localAddr);
         if (!loc) {
-            std::cerr << "Invalid address: " << args.remoteAddr << '\n';
+            std::cerr << "Invalid address: " << args.localAddr << '\n';
             return EXIT_FAILURE;
         }
         local = *loc;
@@ -401,7 +401,7 @@ public:
 
         auto src = LocalUDPAddr::fromString(args.localAddr);
         if (!src) {
-            std::cerr << "Invalid address: " << args.remoteAddr << '\n';
+            std::cerr << "Invalid address: " << args.localAddr << '\n';
             return EXIT_FAILURE;
         }
         local = *src;

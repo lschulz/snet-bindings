@@ -248,7 +248,7 @@ int runServer(Arguments& args)
 
     auto local = LocalUDPAddr::fromString(args.localAddr);
     if (!local) {
-        std::cerr << "Invalid address: " << args.remoteAddr << '\n';
+        std::cerr << "Invalid address: " << args.localAddr << '\n';
         return EXIT_FAILURE;
     }
 
@@ -320,7 +320,7 @@ int runClient(Arguments& args)
 
     auto src = LocalUDPAddr::fromString(args.localAddr);
     if (!src) {
-        std::cerr << "Invalid address: " << args.remoteAddr << '\n';
+        std::cerr << "Invalid address: " << args.localAddr << '\n';
         return EXIT_FAILURE;
     }
     auto dest = UDPAddr::fromString(args.remoteAddr);
