@@ -22,7 +22,7 @@ set_target_properties(snet_cpp PROPERTIES
     PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/snet/snet.hpp"
     OUTPUT_NAME "snetcpp"
     DEBUG_POSTFIX "d"
-    VERSION "1.0.0"
+    VERSION "1.1.0"
     SOVERSION "1"
 )
 install(TARGETS snet_cpp

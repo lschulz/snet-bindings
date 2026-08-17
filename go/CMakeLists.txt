@@ -89,7 +89,7 @@ if (${BUILD_SHARED_LIBS})
     set_target_properties(snet_shared PROPERTIES
         OUTPUT_NAME snet
         DEBUG_POSTFIX "d"
-        VERSION "1.0.0"
+        VERSION "1.1.0"
         SOVERSION "1"
     )
     if (WIN32)
