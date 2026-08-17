@@ -109,7 +109,7 @@ ScStatus ScReversePath(ScByte* path, ScSize* len, ScSize cap)
     currHop = numHop - currHop - 1;
 
     if (numInf == 2) swap(seg0, seg1);
-    else if (numInf == 3) swap(seg1, seg0);
+    else if (numInf == 3) swap(seg0, seg2);
 
     pathMeta = seg2 | (seg1 << 6) | (seg0 << 12) | (res << 18) | (currHop << 24) | (currInf << 30);
     pathMeta = htonl(pathMeta);

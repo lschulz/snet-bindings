@@ -192,9 +192,9 @@ Status CompletionCV::wait(int timeout)
 
 }
 
-void CompletionCV::execute(Status status)
+int CompletionCV::execute(Status status)
 {
-    pthread_cond_signal(&cond);
+    return pthread_cond_signal(&cond);
 }
 
 #endif // _WIN32
@@ -228,14 +228,19 @@ CompletionPipe::~CompletionPipe()
 Status CompletionPipe::wait()
 {
     std::int64_t value = 0;
-    read(pipe[0], &value, sizeof(value));
-    return static_cast<Status>(value);
+    if (read(pipe[0], &value, sizeof(value)) == sizeof(value)) {
+        return static_cast<Status>(value);
+    }
+    return Status::Failed;
 }
 
-void CompletionPipe::execute(Status status)
+int CompletionPipe::execute(Status status)
 {
     auto value = static_cast<std::int64_t>(status);
-    write(pipe[1], &value, sizeof(value));
+    if (write(pipe[1], &value, sizeof(value)) != sizeof(value)) {
+        return -1;
+    }
+    return 0;
 }
 
 #endif // _WIN32
@@ -264,15 +269,20 @@ Status CompletionEventFD::wait()
 {
     std::uint64_t value = 0;
     static_assert(sizeof(value) == 8);
-    read(event, &value, sizeof(value));
-    return static_cast<Status>(value - STATUS_CODE_BIAS);
+    if (read(event, &value, sizeof(value)) == sizeof(value)) {
+        return static_cast<Status>(value - STATUS_CODE_BIAS);
+    }
+    return Status::Failed;
 }
 
-void CompletionEventFD::execute(Status status)
+int CompletionEventFD::execute(Status status)
 {
     auto value = static_cast<std::uint64_t>(status) + STATUS_CODE_BIAS;
     static_assert(sizeof(value) == 8);
-    write(event, &value, sizeof(value));
+    if (write(event, &value, sizeof(value)) != sizeof(value)) {
+        return -1;
+    }
+    return 0;
 }
 
 #endif // __linux__
@@ -308,9 +318,9 @@ void CompletionEvent::wait()
     }
 }
 
-void CompletionEvent::execute(Status status)
+int CompletionEvent::execute(Status status)
 {
-    SetEvent(event);
+    return static_cast<int>(SetEvent(event));
 }
 
 #endif // _WIN32
@@ -671,14 +681,14 @@ HostCtx::~HostCtx()
 DLLEXPORT
 IA HostCtx::getLocalIA() const
 {
-    if (!ctx) throw NotInitialized("host conntext not initialized");
+    if (!ctx) throw NotInitialized("host context not initialized");
     return IA(ScHostLocalIA(ctx));
 }
 
 DLLEXPORT
 Status HostCtx::init(const char* sciond, std::chrono::milliseconds timeout)
 {
-    if (ctx) throw InvalidArg("host conntext already initialized");
+    if (ctx) throw InvalidArg("host context already initialized");
     ScConfig scConfig = {
         .sciondAddr = sciond,
         .malloc = &std::malloc,
@@ -691,7 +701,7 @@ Status HostCtx::init(const char* sciond, std::chrono::milliseconds timeout)
 DLLEXPORT
 void HostCtx::initAsync(const char* sciond, AsyncOp& async)
 {
-    if (ctx) throw InvalidArg("host conntext already initialized");
+    if (ctx) throw InvalidArg("host context already initialized");
     struct Calldata {
         CompletionHandler* handler;
         ScConfig config;
@@ -715,7 +725,7 @@ void HostCtx::initAsync(const char* sciond, AsyncOp& async)
 DLLEXPORT
 std::tuple<PathVec, Status> HostCtx::queryPaths(IA dst, uint64_t flags, std::chrono::milliseconds timeout) const
 {
-    if (!ctx) throw NotInitialized("host conntext not initialized");
+    if (!ctx) throw NotInitialized("host context not initialized");
     PathVec vec;
     ScPath** paths = nullptr;
     uint32_t count = 0;
@@ -733,7 +743,7 @@ std::tuple<PathVec, Status> HostCtx::queryPaths(IA dst, uint64_t flags, std::chr
 DLLEXPORT
 void HostCtx::queryPathsAsync(PathVec& vec, IA dst, uint64_t flags, AsyncOp& async)
 {
-    if (!ctx) throw NotInitialized("host conntext not initialized");
+    if (!ctx) throw NotInitialized("host context not initialized");
     struct Calldata {
         CompletionHandler* handler;
         PathVec& vec;

@@ -12,6 +12,8 @@
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
 typedef struct { const char *p; ptrdiff_t n; } _GoString_;
+extern size_t _GoStringLen(_GoString_ s);
+extern const char *_GoStringPtr(_GoString_ s);
 #endif
 
 #endif
@@ -51,9 +53,15 @@ typedef size_t GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;
 #ifdef _MSC_VER
+#if !defined(__cplusplus) || _MSVC_LANG <= 201402L
 #include <complex.h>
 typedef _Fcomplex GoComplex64;
 typedef _Dcomplex GoComplex128;
+#else
+#include <complex>
+typedef std::complex<float> GoComplex64;
+typedef std::complex<double> GoComplex128;
+#endif
 #else
 typedef float _Complex GoComplex64;
 typedef double _Complex GoComplex128;
@@ -87,110 +95,23 @@ extern ScStatus ScFormatLocalUDPAddr(ConstPtrScLocalUDPAddr addr, char* str, ScS
 extern ScStatus ScParseUDPAddr(cchar* str, struct ScUDPAddr* udp);
 extern ScStatus ScParseUDPAddrN(cchar* str, int length, struct ScUDPAddr* udp);
 extern ScStatus ScFormatUDPAddr(ConstPtrScUDPAddr udp, char* str, ScSize* length);
-
-/**
-\brief Cancel an asynchronous operation.
-*/
 extern void ScCancelAsyncOp(struct ScAsyncOp* op);
-
-/**
-\brief Initialize the host context.
-*/
 extern ScStatus ScHostInit(ScHostCtx* hostCtx, ConstPtrScConfig config, ScSCMPHandler scmpCallback, uintptr_t scmpUserData, GoInt32 timeout);
-
-/**
-\brief Initialize the host context.
-*/
 extern void ScHostInitAsync(ScHostCtx* hostCtx, ConstPtrScConfig config, ScSCMPHandler scmpCallback, uintptr_t scmpUserData, struct ScAsyncOp* op);
-
-/**
-\brief Destroy the host context. Make sure there are no sockets using ths context anymore before
-destroying it.
-*/
 extern void ScHostDestroy(ScHostCtx hostCtx);
-
-/**
-\brief Allocate memory through the callback passed during host context initialization.
-*/
 extern void* ScHostAllocMem(ScHostCtx hostCtx, GoInt size);
-
-/**
-\brief Deallocate memory allocated with ScHostAllocMem().
-*/
 extern void ScHostFreeMem(ScHostCtx hostCtx, void* ptr);
-
-/**
-\brief Return the local AS address.
-*/
 extern ScIA ScHostLocalIA(ScHostCtx hostCtx);
-
-/**
-\brief Query paths from the SCION daemon.
-*/
 extern ScStatus ScQueryPaths(ScHostCtx hostCtx, ScIA dst, struct ScPath*** paths, uint32_t* count, GoUint64 flags, GoInt32 timeout);
-
-/**
-\brief Query paths from the SCION daemon.
-*/
 extern void ScQueryPathsAsync(ScHostCtx hostCtx, ScIA dst, struct ScPath*** paths, uint32_t* count, GoUint64 flags, struct ScAsyncOp* op);
-
-/**
-\brief Open a socket.
-*/
 extern ScStatus ScOpenSocket(ScHostCtx hostCtx, ConstPtrScLocalUDPAddr local, ScSocket* sock, GoInt32 timeout);
-
-/**
-\brief Open a socket.
-*/
 extern void ScOpenSocketAsync(ScHostCtx hostCtx, ConstPtrScLocalUDPAddr local, ScSocket* sock, struct ScAsyncOp* op);
-
-/**
-\brief Close a socket.
-*/
 extern void ScCloseSocket(ScSocket conn);
-
-/**
-\brief Set a deadline for all current and future sent operations. Setting this to a value in
-the past cancels all send operations immediately. Setting the deadline to a negative value
-disables a previously set send deadline.
-\param[in] conn An open socket
-\param[in] deadline Deadline as Unix timestamp in milliseconds. A negative value
-           disables a previously set deadline.
-*/
 extern ScStatus ScSocketSetSendDeadline(ScSocket sock, GoInt64 deadline);
-
-/**
-\brief Set a deadline for all current and future receive operations. Setting this to a value
-in the past cancels all receive operations immediately. Setting the deadline to a negative
-value disables a previously set receive deadline.
-\param[in] conn An open socket
-\param[in] deadline Deadline as Unix timestamp in milliseconds. A negative value
-           disables a previously set deadline.
-*/
 extern ScStatus ScSocketSetRecvDeadline(ScSocket sock, GoInt64 deadline);
-
-/**
-\brief Send a UDP packet.
-*/
 extern ScStatus ScSendPacket(ScSocket sock, struct ScUDPPacket* pkt);
-
-/**
-\brief Send a UDP packet.
-\details Calling cancel() on the async object has no effect. The only way to cancel a pending
-operation is by closing the socket or setting a send deadline.
-*/
 extern void ScSendPacketAsync(ScSocket conn, struct ScUDPPacket* pkt, struct ScAsyncOp* op);
-
-/**
-\brief Receive a UDP packet.
-*/
 extern ScStatus ScRecvPacket(ScSocket sock, struct ScUDPPacket* pkt);
-
-/**
-\brief Receive a UDP packet.
-\details Calling cancel() on the async object has no effect. The only way to cancel a pending
-operation is by closing the socket or setting a receive deadline.
-*/
 extern void ScRecvPacketAsync(ScSocket sock, struct ScUDPPacket* pkt, struct ScAsyncOp* op);
 
 #ifdef __cplusplus

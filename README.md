@@ -3,10 +3,10 @@ SCION SNET Bindings for C and C++
 
 C and C++ bindings for SCION's primary application API
 [snet](https://pkg.go.dev/github.com/scionproto/scion/pkg/snet).
-The bindings build against the
-[dispatcher removal PR](https://github.com/scionproto/scion/pull/4344).
 
 ### Build
+Depends on standalone Asio and doctest.
+
 CMake build options:
 - `GO_BINARY` Path to the go executable.
 - `BUILD_STATIC_LIBS` Build a static library.
@@ -15,6 +15,11 @@ CMake build options:
 - `BUILD_EXAMPLES` Build examples programs.
 
 #### Linux
+Install dependencies (Ubuntu):
+```bash
+sudo apt-get install libasio-dev doctest-dev
+```
+
 Release:
 ```bash
 mkdir -p build/release

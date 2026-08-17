@@ -252,7 +252,7 @@ public:
 
 private:
     virtual void setContext(ScAsyncOp* op) {}
-    virtual void execute(Status status) = 0;
+    virtual int execute(Status status) = 0;
 };
 
 /// \brief Specifies a function to be called on completion.
@@ -260,18 +260,18 @@ private:
 class CompletionCallback : public CompletionHandler
 {
 public:
-    CompletionCallback(std::function<void(Status)> callback)
+    CompletionCallback(std::function<int(Status)> callback)
         : callback(std::move(callback))
     {}
 
 private:
-    void execute(Status status) override
+    int execute(Status status) override
     {
-        callback(status);
+        return callback(status);
     }
 
 private:
-    std::function<void(Status)> callback;
+    std::function<int(Status)> callback;
 };
 
 #ifndef _WIN32
@@ -299,7 +299,7 @@ public:
 
 private:
     void setContext(ScAsyncOp* op) override { this->op = op; }
-    void execute(Status status) override;
+    int execute(Status status) override;
 
 private:
     ScAsyncOp *op;
@@ -327,7 +327,7 @@ public:
     int getHandle() const { return pipe[0]; }
 
 private:
-    void execute(Status status) override;
+    int execute(Status status) override;
 
 private:
     std::array<int, 2> pipe = {-1, -1};
@@ -357,7 +357,7 @@ public:
     int getHandle() const { return event; }
 
 private:
-    void execute(Status status) override;
+    int execute(Status status) override;
 
 private:
     int event = -1;
@@ -387,7 +387,7 @@ public:
     HANDLE getHandle() const { return event; }
 
 private:
-    void execute(Status status) override;
+    int execute(Status status) override;
 
 private:
     HANDLE event = INVALID_HANDLE_VALUE;
@@ -410,7 +410,7 @@ public:
     /// operation is still ongoing Status::NotReady is returned instead.
     Status getStatus();
 
-    /// \brief Attempt to cancel the operation. The completion hander is still
+    /// \brief Attempt to cancel the operation. The completion handler is still
     /// invoked for cancelled operations with Status::Cancelled.
     void cancel();
 

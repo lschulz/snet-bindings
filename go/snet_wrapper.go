@@ -30,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemon_types "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
@@ -371,9 +372,7 @@ func hostInit(ctx context.Context, hostCtx *C.ScHostCtx, config *C.struct_ScConf
 	}
 
 	// Daemon
-	sciond, err := daemon.Service{
-		Address: C.GoString(config.sciondAddr),
-	}.Connect(ctx)
+	sciond, err := daemon.NewService(C.GoString(config.sciondAddr)).Connect(ctx)
 	if err != nil {
 		return C.SC_ERROR_DAEMON
 	}
@@ -384,8 +383,14 @@ func hostInit(ctx context.Context, hostCtx *C.ScHostCtx, config *C.struct_ScConf
 		return C.SC_ERROR_DAEMON
 	}
 
+	// Load topology
+	topo, err := daemon.LoadTopology(ctx, sciond)
+	if err != nil {
+		return C.SC_ERROR_DAEMON
+	}
+
 	network := &snet.SCIONNetwork{
-		Topology: sciond,
+		Topology: topo,
 		SCMPHandler: scmpHandler{
 			callback: scmpCallback,
 			userdata: scmpUserData,
@@ -481,7 +486,7 @@ func ScQueryPathsAsync(hostCtx C.ScHostCtx, dst C.ScIA, paths ***C.struct_ScPath
 func (h *HostCtx) queryPaths(ctx context.Context, dst C.ScIA,
 	paths ***C.struct_ScPath, count *C.uint32_t, flags uint64) C.ScStatus {
 	// Get paths from daemon
-	dflags := daemon.PathReqFlags{
+	dflags := daemon_types.PathReqFlags{
 		Refresh: flags&C.SC_FLAG_PATH_REFRESH != 0,
 		Hidden:  flags&C.SC_FLAG_PATH_HIDDEN != 0,
 	}

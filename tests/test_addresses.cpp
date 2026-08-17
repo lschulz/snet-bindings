@@ -71,13 +71,13 @@ TEST_CASE("handling of AS-local UDP addresses")
 TEST_CASE("handling of global UDP addresses")
 {
     static const std::array<std::pair<const char*, ScUDPAddr>, 3> cases = {
-        std::make_pair("1-ff00:0:1,127.0.0.1:5000", ScUDPAddr{
+        std::make_pair("[1-ff00:0:1,127.0.0.1]:5000", ScUDPAddr{
             0x1ff0000000001, {{SC_ADDR_TYPE_IPV4, {127, 0, 0, 1}, {}}, 5000}
         }),
-        std::make_pair("1-ff00:0:1,[::1]:5000", ScUDPAddr{
+        std::make_pair("[1-ff00:0:1,::1]:5000", ScUDPAddr{
             0x1ff0000000001, {{SC_ADDR_TYPE_IPV6, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, {}}, 5000}
         }),
-        std::make_pair("1-ff00:0:1,[fe80::1234:5678:9abc:def0%eth1]:5000", ScUDPAddr{
+        std::make_pair("[1-ff00:0:1,fe80::1234:5678:9abc:def0%eth1]:5000", ScUDPAddr{
             0x1ff0000000001, {{SC_ADDR_TYPE_IPV6,
                 {0xfe, 0x80, 0, 0, 0, 0, 0, 0x00, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0},
                 {'e', 't', 'h', '1'}
